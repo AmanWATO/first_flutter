@@ -45,7 +45,7 @@ class AppListItemWithUsage extends StatelessWidget {
                     app.category,
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                   ),
-                  if (hasUsagePermission)
+                  if (hasUsagePermission) ...[
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Row(
@@ -69,6 +69,28 @@ class AppListItemWithUsage extends StatelessWidget {
                         ],
                       ),
                     ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.history,
+                            size: 16,
+                            color: Colors.blueGrey,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Last Active: ${UsageUtils.formatLastActive(app.lastForeground)}',
+                            style: const TextStyle(
+                              color: Colors.blueGrey,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

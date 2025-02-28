@@ -97,9 +97,7 @@ class _AppsScreenState extends State<AppsScreen> {
       setState(() {
         _usageInfo = usageMap;
       });
-    } catch (e) {
-      print('Failed to get usage stats: $e');
-    }
+    } catch (e) {}
   }
 
   Future<void> _loadApps() async {
@@ -111,28 +109,30 @@ class _AppsScreenState extends State<AppsScreen> {
       List<Application> installedApps =
           await DeviceApps.getInstalledApplications(
             includeAppIcons: true,
-            includeSystemApps: false,
+            includeSystemApps: true,
             onlyAppsWithLaunchIntent: true,
           );
 
       List<AppInfoWithUsage> appInfoList =
-          installedApps
-              .whereType<ApplicationWithIcon>()
-              .map(
-                (app) => AppInfoWithUsage(
-                  name: app.appName,
-                  packageName: app.packageName,
-                  icon: app.icon,
-                  category: UsageUtils.capitalize(
-                    app.category.toString().split('.').last,
-                  ),
-                  usageTime:
-                      _hasUsagePermission
-                          ? _usageInfo[app.packageName]?.usage ?? Duration.zero
-                          : Duration.zero,
-                ),
-              )
-              .toList();
+          installedApps.whereType<ApplicationWithIcon>().map((app) {
+            return AppInfoWithUsage(
+              name: app.appName,
+              packageName: app.packageName,
+              icon: app.icon,
+              category: UsageUtils.capitalize(
+                app.category.toString().split('.').last,
+              ),
+              usageTime:
+                  _hasUsagePermission
+                      ? _usageInfo[app.packageName]?.usage ?? Duration.zero
+                      : Duration.zero,
+              lastForeground:
+                  _hasUsagePermission
+                      ? _usageInfo[app.packageName]?.lastForeground ??
+                          DateTime.fromMillisecondsSinceEpoch(0)
+                      : DateTime.fromMillisecondsSinceEpoch(0),
+            );
+          }).toList();
 
       appInfoList.sort((a, b) => a.name.compareTo(b.name));
 
@@ -158,7 +158,6 @@ class _AppsScreenState extends State<AppsScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading apps: $e');
       setState(() {
         _isLoading = false;
       });
@@ -340,18 +339,32 @@ class _AppsScreenState extends State<AppsScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ElevatedButton.icon(
+                            OutlinedButton.icon(
                               onPressed: () => _showTimerSettingModal(context),
-                              icon: const Icon(Icons.timer_outlined),
+                              icon: const Icon(
+                                Icons.timer_outlined,
+                                color: Colors.black,
+                              ),
                               label:
                                   _hasSetThreshold
                                       ? Text(
                                         '${_overusedThreshold ~/ 60}h ${_overusedThreshold % 60}m',
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                        ),
                                       )
-                                      : const Text('Set Usage Threshold'),
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.black,
-                                backgroundColor: Colors.purpleAccent.shade100,
+                                      : const Text(
+                                        'Set Usage Threshold',
+                                        style: TextStyle(color: Colors.black),
+                                      ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: Colors.purpleAccent.shade100,
+                                  width: 1,
+                                ), // Border color
+                                backgroundColor:
+                                    Colors
+                                        .transparent, // Transparent background
                               ),
                             ),
                             if (!_hasSetThreshold)

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class UsageUtils {
   static String formatDuration(Duration duration) {
@@ -47,5 +48,25 @@ class UsageUtils {
   static String capitalize(String? text) {
     if (text == null || text.isEmpty) return "Unknown";
     return text[0].toUpperCase() + text.substring(1).toLowerCase();
+  }
+
+  static String formatLastActive(DateTime? lastActive) {
+    if (lastActive == null || lastActive.isBefore(DateTime(2000))) {
+      return 'Not used recently';
+    }
+
+    Duration difference = DateTime.now().difference(lastActive);
+
+    if (difference.inSeconds < 60) {
+      return '${difference.inSeconds}s ago';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return DateFormat('MMM d, yyyy - h:mm a').format(lastActive);
+    }
   }
 }

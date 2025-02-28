@@ -39,10 +39,9 @@ dependencies:
   permission_handler: ^11.3.0
   app_usage: ^4.0.0
   shared_preferences: ^2.2.0
-  flutter_switch: ^0.3.2
-  app_settings: ^5.2.0
-  device_policy_manager: ^0.0.1
-  flutter_local_notifications: ^18.0.1
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.0
+  intl: ^0.17.0
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +63,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/icon/app_icon.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -95,3 +96,18 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png" # Update this with your icon path
+
+flutter_native_splash:
+  color: "#000000"  # Change this to match your app's theme (e.g., black, dark mode, etc.)
+  image: assets/icon/app_icon.png  # Use the same icon you used for the launcher
+  fullscreen: true  # Ensures the splash screen takes up the whole screen
+  android: true
+  ios: true
+  android_12:
+    color: "#000000"  # Ensure it's the same as the normal splash color
+    image: assets/icon/app_icon.png
