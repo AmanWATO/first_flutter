@@ -9,6 +9,7 @@
 # packages, and plugins designed to encourage good coding practices.
 analyzer:
   errors:
+    deprecated_member_use: ignore
     library_private_types_in_public_api: ignore
     unnecessary_to_list_in_spreads: ignore
     unrelated_type_equality_checks: ignore

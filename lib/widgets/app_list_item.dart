@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../screens/apps_screen.dart';
 
 class AppListItem extends StatelessWidget {
-  final AppInfo app;
+  final AppInfoWithUsage app;
 
   const AppListItem({super.key, required this.app});
 
