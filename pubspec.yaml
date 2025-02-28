@@ -38,6 +38,11 @@ dependencies:
   device_apps: ^2.2.0
   permission_handler: ^11.3.0
   app_usage: ^4.0.0
+  shared_preferences: ^2.2.0
+  flutter_switch: ^0.3.2
+  app_settings: ^5.2.0
+  device_policy_manager: ^0.0.1
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:

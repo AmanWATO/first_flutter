@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:app_usage/app_usage.dart';
-import 'dart:typed_data';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/app_model.dart';
+import '../widgets/app_list_item.dart';
+import '../utils/usage_utils.dart';
 
 class AppsScreen extends StatefulWidget {
   const AppsScreen({super.key});
@@ -14,16 +17,40 @@ class AppsScreen extends StatefulWidget {
 class _AppsScreenState extends State<AppsScreen> {
   List<AppInfoWithUsage> _apps = [];
   Map<String, List<AppInfoWithUsage>> _categorizedApps = {};
-  Map<String, List<AppInfoWithUsage>> _usageCategorizedApps = {};
+  final Map<String, List<AppInfoWithUsage>> _usageCategorizedApps = {};
   bool _isLoading = true;
   bool _hasUsagePermission = false;
   String _selectedCategory = "All";
   Map<String, AppUsageInfo> _usageInfo = {};
+  // Default threshold in minutes (2 hours)
+  int _overusedThreshold = 120;
+  bool _hasSetThreshold = false;
 
   @override
   void initState() {
     super.initState();
-    _checkPermissionAndLoadData();
+    _loadThresholdAndCheckPermission();
+  }
+
+  Future<void> _loadThresholdAndCheckPermission() async {
+    // Load saved threshold from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    _overusedThreshold = prefs.getInt('overused_threshold') ?? 120;
+    _hasSetThreshold = prefs.getBool('has_set_threshold') ?? false;
+
+    // Show threshold setting modal if not set before
+    // Do this immediately before any other operations
+    if (!_hasSetThreshold) {
+      // Must use a slight delay to ensure context is available
+      Future.delayed(Duration.zero, () {
+        if (mounted) {
+          _showTimerSettingModal(context);
+        }
+      });
+    }
+
+    // Check for usage stats permission and load data
+    await _checkPermissionAndLoadData();
   }
 
   Future<void> _checkPermissionAndLoadData() async {
@@ -96,7 +123,7 @@ class _AppsScreenState extends State<AppsScreen> {
                   name: app.appName,
                   packageName: app.packageName,
                   icon: app.icon,
-                  category: _capitalize(
+                  category: UsageUtils.capitalize(
                     app.category.toString().split('.').last,
                   ),
                   usageTime:
@@ -111,33 +138,19 @@ class _AppsScreenState extends State<AppsScreen> {
 
       _categorizedApps = {};
 
+      // Categorize apps by their original categories
       for (var app in appInfoList) {
         _categorizedApps.putIfAbsent(app.category, () => []).add(app);
       }
 
       if (_hasUsagePermission) {
-        _usageCategorizedApps = {
-          'Over Used Apps': [],
-          'Used Apps': [],
-          'Not Used Recently': [],
-        };
+        // Categorize all apps by usage
+        _categorizeAppsByUsage(appInfoList);
 
-        for (var app in appInfoList) {
-          if (app.usageTime.inMinutes >= 120) {
-            _usageCategorizedApps['Over Used Apps']!.add(app);
-          } else if (app.usageTime.inMinutes > 0) {
-            _usageCategorizedApps['Used Apps']!.add(app);
-          } else {
-            _usageCategorizedApps['Not Used Recently']!.add(app);
-          }
-        }
-
-        _usageCategorizedApps['Over Used Apps']!.sort(
-          (a, b) => b.usageTime.compareTo(a.usageTime),
-        );
-        _usageCategorizedApps['Used Apps']!.sort(
-          (a, b) => b.usageTime.compareTo(a.usageTime),
-        );
+        // Also categorize each app category by usage
+        _categorizedApps.forEach((category, apps) {
+          _categorizeAppsByUsage(apps, categoryPrefix: category);
+        });
       }
 
       setState(() {
@@ -145,18 +158,163 @@ class _AppsScreenState extends State<AppsScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      print('Error loading apps: $e');
       setState(() {
         _isLoading = false;
       });
     }
   }
 
+  void _categorizeAppsByUsage(
+    List<AppInfoWithUsage> apps, {
+    String? categoryPrefix,
+  }) {
+    final String prefix = categoryPrefix != null ? '${categoryPrefix}_' : '';
+
+    Map<String, List<AppInfoWithUsage>> categorizedByUsage = {
+      '${prefix}Heavy Usage': [],
+      '${prefix}Moderate Usage': [],
+      '${prefix}Minimal Usage': [],
+    };
+
+    for (var app in apps) {
+      if (app.usageTime.inMinutes >= _overusedThreshold) {
+        categorizedByUsage['${prefix}Heavy Usage']!.add(app);
+      } else if (app.usageTime.inMinutes > 0) {
+        categorizedByUsage['${prefix}Moderate Usage']!.add(app);
+      } else {
+        categorizedByUsage['${prefix}Minimal Usage']!.add(app);
+      }
+    }
+
+    // Sort by usage time (descending)
+    categorizedByUsage['${prefix}Heavy Usage']!.sort(
+      (a, b) => b.usageTime.compareTo(a.usageTime),
+    );
+    categorizedByUsage['${prefix}Moderate Usage']!.sort(
+      (a, b) => b.usageTime.compareTo(a.usageTime),
+    );
+
+    // Add to or update the main usage categorized apps map
+    _usageCategorizedApps.addAll(categorizedByUsage);
+  }
+
+  void _showTimerSettingModal(BuildContext context) {
+    int tempThreshold = _overusedThreshold;
+    int tempHours = tempThreshold ~/ 60;
+    int tempMinutes = tempThreshold % 60;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Set Usage Thresholds'),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Set the time threshold for categorizing apps as heavily used:',
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 100,
+                        child: TextField(
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          decoration: const InputDecoration(labelText: "Hours"),
+                          onChanged: (value) {
+                            setState(() {
+                              tempHours = int.tryParse(value) ?? 0;
+                              tempThreshold = (tempHours * 60) + tempMinutes;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(":", style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        width: 100,
+                        child: TextField(
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          decoration: const InputDecoration(
+                            labelText: "Minutes",
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              tempMinutes = int.tryParse(value) ?? 0;
+                              tempThreshold = (tempHours * 60) + tempMinutes;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Apps used more than this threshold will be marked as "Heavy Usage"',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Close'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _saveThresholdSettings(tempThreshold, true);
+              },
+              child: const Text('Set Threshold'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _saveThresholdSettings(int threshold, bool hasSet) async {
+    // Save to SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('overused_threshold', threshold);
+    await prefs.setBool('has_set_threshold', hasSet);
+
+    setState(() {
+      _overusedThreshold = threshold;
+      _hasSetThreshold = hasSet;
+    });
+
+    // Reload apps with new threshold
+    if (_hasUsagePermission) {
+      await _loadApps();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    List<String> categories = [
-      "All",
-      ...(_categorizedApps.keys.toList()..sort()),
-    ];
+    // Create a list of unique category names for the dropdown
+    List<String> categories = ["All"];
+
+    // Add the other categories from _categorizedApps
+    if (_categorizedApps.isNotEmpty) {
+      categories.addAll(
+        _categorizedApps.keys.where((c) => c != "All").toList()..sort(),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -175,35 +333,75 @@ class _AppsScreenState extends State<AppsScreen> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20.0, 20.0, 20.0, 8.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8.0),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                      width: double.infinity,
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          borderRadius: BorderRadius.circular(4),
-                          isExpanded: true,
-                          value: _selectedCategory,
-                          hint: const Text('Select Category'),
-                          items:
-                              categories
-                                  .map(
-                                    (category) => DropdownMenuItem(
-                                      value: category,
-                                      child: Text(category),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged: (newCategory) {
-                            setState(() {
-                              _selectedCategory = newCategory!;
-                            });
-                          },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Timer setting button
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () => _showTimerSettingModal(context),
+                              icon: const Icon(Icons.timer_outlined),
+                              label:
+                                  _hasSetThreshold
+                                      ? Text(
+                                        '${_overusedThreshold ~/ 60}h ${_overusedThreshold % 60}m',
+                                      )
+                                      : const Text('Set Usage Threshold'),
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.black,
+                                backgroundColor: Colors.purpleAccent.shade100,
+                              ),
+                            ),
+                            if (!_hasSetThreshold)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 4.0,
+                                  left: 8.0,
+                                ),
+                                child: Text(
+                                  'Default: 2 hours',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
+                        // Category dropdown
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8.0),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              borderRadius: BorderRadius.circular(4),
+                              value: _selectedCategory,
+                              hint: const Text('Category'),
+                              items:
+                                  categories
+                                      .map(
+                                        (category) => DropdownMenuItem(
+                                          value: category,
+                                          child: Text(category),
+                                        ),
+                                      )
+                                      .toList(),
+                              onChanged: (newCategory) {
+                                if (newCategory != null) {
+                                  setState(() {
+                                    _selectedCategory = newCategory;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   !_hasUsagePermission
@@ -240,7 +438,7 @@ class _AppsScreenState extends State<AppsScreen> {
                       : const SizedBox.shrink(),
                   Expanded(
                     child:
-                        _selectedCategory == "All" && _hasUsagePermission
+                        _hasUsagePermission
                             ? _buildUsageCategorizedList()
                             : ListView.builder(
                               padding: const EdgeInsets.symmetric(
@@ -272,9 +470,25 @@ class _AppsScreenState extends State<AppsScreen> {
   Widget _buildUsageCategorizedList() {
     List<Widget> sections = [];
 
-    // Add each usage category as a section with header
-    _usageCategorizedApps.forEach((category, apps) {
+    // Get the relevant prefix for the current category
+    String prefix = _selectedCategory == "All" ? "" : "${_selectedCategory}_";
+
+    // These are the usage categories we'll be looking for
+    List<String> usageCategories = [
+      '${prefix}Heavy Usage',
+      '${prefix}Moderate Usage',
+      '${prefix}Minimal Usage',
+    ];
+
+    // For each usage category, check if it exists and has apps
+    for (String fullCategoryName in usageCategories) {
+      List<AppInfoWithUsage> apps =
+          _usageCategorizedApps[fullCategoryName] ?? [];
+
       if (apps.isNotEmpty) {
+        // Extract the display name (without the prefix)
+        String displayName = fullCategoryName.replaceFirst('${prefix}', '');
+
         sections.add(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,7 +496,9 @@ class _AppsScreenState extends State<AppsScreen> {
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(6),
-                  color: _getUsageCategoryColor(category).withOpacity(0.1),
+                  color: UsageUtils.getUsageCategoryColor(
+                    displayName,
+                  ).withOpacity(0.1),
                 ),
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -295,13 +511,12 @@ class _AppsScreenState extends State<AppsScreen> {
                   right: 20,
                   left: 20,
                 ),
-
                 child: Text(
-                  category,
+                  displayName,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: _getUsageCategoryColor(category),
+                    color: UsageUtils.getUsageCategoryColor(displayName),
                   ),
                 ),
               ),
@@ -320,152 +535,10 @@ class _AppsScreenState extends State<AppsScreen> {
           ),
         );
       }
-    });
+    }
 
     return sections.isEmpty
-        ? const Center(child: Text('No usage data available'))
+        ? const Center(child: Text('No usage data available for this category'))
         : ListView(children: sections);
-  }
-
-  Color _getUsageCategoryColor(String category) {
-    switch (category) {
-      case 'Over Used Apps':
-        return Colors.red;
-      case 'Used Apps':
-        return Colors.blue;
-      case 'Not Used Recently':
-        return Colors.grey;
-      default:
-        return Colors.black;
-    }
-  }
-
-  String _capitalize(String? text) {
-    if (text == null || text.isEmpty) return "Unknown";
-    return text[0].toUpperCase() + text.substring(1).toLowerCase();
-  }
-}
-
-class AppInfoWithUsage {
-  final String name;
-  final String packageName;
-  final Uint8List icon;
-  final String category;
-  final Duration usageTime;
-
-  AppInfoWithUsage({
-    required this.name,
-    required this.packageName,
-    required this.icon,
-    required this.category,
-    required this.usageTime,
-  });
-}
-
-class AppListItemWithUsage extends StatelessWidget {
-  final AppInfoWithUsage app;
-  final bool hasUsagePermission;
-
-  const AppListItemWithUsage({
-    super.key,
-    required this.app,
-    required this.hasUsagePermission,
-  });
-
-  String _formatDuration(Duration duration) {
-    int hours = duration.inHours;
-    int minutes = duration.inMinutes.remainder(60);
-
-    if (hours > 0) {
-      return '$hours h:${minutes > 0 ? '$minutes min' : ''}';
-    } else if (minutes > 0) {
-      return '$minutes min';
-    } else {
-      return 'Less than 1 min';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.memory(app.icon, width: 48, height: 48),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    app.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    app.category,
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                  ),
-                  if (hasUsagePermission)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 16,
-                            color: _getUsageColor(app.usageTime),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Used: ${_formatDuration(app.usageTime)}',
-                            style: TextStyle(
-                              color: _getUsageColor(
-                                app.usageTime,
-                              ).withOpacity(0.9),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _getUsageColor(Duration duration) {
-    if (duration.inMinutes >= 120) {
-      return Colors.red.shade700;
-    } else if (duration.inMinutes >= 90) {
-      return Colors.deepOrange.shade700;
-    } else if (duration.inMinutes >= 60) {
-      return Colors.deepOrangeAccent.shade700;
-    } else if (duration.inMinutes > 30) {
-      return Colors.orange.shade700;
-    } else if (duration.inMinutes > 10) {
-      return Colors.blue.shade700;
-    } else if (duration.inMinutes > 0) {
-      return Colors.blue.shade500;
-    } else {
-      return Colors.grey.shade700;
-    }
   }
 }
