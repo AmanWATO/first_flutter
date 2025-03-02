@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/apps_screen.dart';
+import 'screens/history_screen.dart'; // Import History Screen
 
 void main() {
   runApp(const MyApp());
@@ -31,7 +32,12 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  static final List<Widget> _screens = [const HomeScreen(), const AppsScreen()];
+  // Now includes HistoryScreen
+  static final List<Widget> _screens = [
+    const HomeScreen(),
+    const AppsScreen(),
+    const HistoryScreen(), // Added History Tab
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -49,6 +55,10 @@ class _MainScreenState extends State<MainScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(icon: Icon(Icons.apps), label: "Apps"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history),
+            label: "History",
+          ), // New Tab
         ],
       ),
     );

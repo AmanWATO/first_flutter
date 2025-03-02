@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 class UsageUtils {
   static String formatDuration(Duration duration) {
@@ -66,7 +65,7 @@ class UsageUtils {
     } else if (difference.inDays < 7) {
       return '${difference.inDays}d ago';
     } else {
-      return DateFormat('MMM d, yyyy - h:mm a').format(lastActive);
+      return 'Not used recently';
     }
   }
 }
