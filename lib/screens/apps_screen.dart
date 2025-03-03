@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_model.dart';
 import '../widgets/app_list_item.dart';
 import '../utils/usage_utils.dart';
+import 'dart:ui';
 
 class AppsScreen extends StatefulWidget {
   const AppsScreen({super.key});
@@ -25,6 +26,7 @@ class _AppsScreenState extends State<AppsScreen> {
   // Default threshold in minutes (2 hours)
   int _overusedThreshold = 120;
   bool _hasSetThreshold = false;
+  bool _showingThresholdModal = false;
 
   @override
   void initState() {
@@ -38,19 +40,22 @@ class _AppsScreenState extends State<AppsScreen> {
     _overusedThreshold = prefs.getInt('overused_threshold') ?? 120;
     _hasSetThreshold = prefs.getBool('has_set_threshold') ?? false;
 
+    // Check for usage stats permission and load data
+    await _checkPermissionAndLoadData();
+
     // Show threshold setting modal if not set before
-    // Do this immediately before any other operations
+    // Do this after loading data so we have content to blur
     if (!_hasSetThreshold) {
       // Must use a slight delay to ensure context is available
       Future.delayed(Duration.zero, () {
         if (mounted) {
+          setState(() {
+            _showingThresholdModal = true;
+          });
           _showTimerSettingModal(context);
         }
       });
     }
-
-    // Check for usage stats permission and load data
-    await _checkPermissionAndLoadData();
   }
 
   Future<void> _checkPermissionAndLoadData() async {
@@ -227,6 +232,9 @@ class _AppsScreenState extends State<AppsScreen> {
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
                           decoration: const InputDecoration(labelText: "Hours"),
+                          controller: TextEditingController(
+                            text: tempHours.toString(),
+                          ),
                           onChanged: (value) {
                             setState(() {
                               tempHours = int.tryParse(value) ?? 0;
@@ -245,6 +253,9 @@ class _AppsScreenState extends State<AppsScreen> {
                           textAlign: TextAlign.center,
                           decoration: const InputDecoration(
                             labelText: "Minutes",
+                          ),
+                          controller: TextEditingController(
+                            text: tempMinutes.toString(),
                           ),
                           onChanged: (value) {
                             setState(() {
@@ -270,12 +281,18 @@ class _AppsScreenState extends State<AppsScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+                setState(() {
+                  _showingThresholdModal = false;
+                });
               },
               child: const Text('Close'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+                setState(() {
+                  _showingThresholdModal = false;
+                });
                 _saveThresholdSettings(tempThreshold, true);
               },
               child: const Text('Set Threshold'),
@@ -299,13 +316,24 @@ class _AppsScreenState extends State<AppsScreen> {
 
     // Reload apps with new threshold
     if (_hasUsagePermission) {
-      await _loadApps();
+      // Clear the current categorized apps to ensure fresh categorization
+      _usageCategorizedApps.clear();
+
+      // Recategorize all apps with the new threshold
+      _categorizeAppsByUsage(_apps);
+
+      // Also recategorize each app category
+      _categorizedApps.forEach((category, apps) {
+        _categorizeAppsByUsage(apps, categoryPrefix: category);
+      });
+
+      // Update the UI
+      setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Create a list of unique category names for the dropdown
     List<String> categories = ["All"];
 
     // Add the other categories from _categorizedApps
@@ -315,7 +343,7 @@ class _AppsScreenState extends State<AppsScreen> {
       );
     }
 
-    return Scaffold(
+    Widget mainContent = Scaffold(
       appBar: AppBar(
         title: const Text('App Usage Stats'),
         actions: [
@@ -340,7 +368,12 @@ class _AppsScreenState extends State<AppsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             OutlinedButton.icon(
-                              onPressed: () => _showTimerSettingModal(context),
+                              onPressed: () {
+                                setState(() {
+                                  _showingThresholdModal = true;
+                                });
+                                _showTimerSettingModal(context);
+                              },
                               icon: const Icon(
                                 Icons.timer_outlined,
                                 color: Colors.black,
@@ -354,7 +387,7 @@ class _AppsScreenState extends State<AppsScreen> {
                                         ),
                                       )
                                       : const Text(
-                                        'Set Usage Threshold',
+                                        'Set Usage',
                                         style: TextStyle(color: Colors.black),
                                       ),
                               style: OutlinedButton.styleFrom(
@@ -478,6 +511,23 @@ class _AppsScreenState extends State<AppsScreen> {
                 ],
               ),
     );
+
+    // If showing the threshold modal, wrap the content with a blur effect
+    return _showingThresholdModal
+        ? Stack(
+          children: [
+            mainContent,
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          ],
+        )
+        : mainContent;
   }
 
   Widget _buildUsageCategorizedList() {
