@@ -169,7 +169,9 @@ class _AppUsagePanelState extends State<AppUsagePanel> {
 
                     const SizedBox(height: 2),
                     Text(
-                      "${app['usage'].inMinutes} min",
+                      app['usage'].inHours > 0
+                          ? "${app['usage'].inHours}hr : ${app['usage'].inMinutes % 60}min"
+                          : "${app['usage'].inMinutes} min",
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
