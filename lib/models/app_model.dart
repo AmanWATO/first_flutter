@@ -7,6 +7,7 @@ class AppInfoWithUsage {
   final String category;
   final Duration usageTime;
   final DateTime lastForeground; // New field for last active time
+  final DateTime installationDate;
   bool isBlocked; // New field for blocking apps
 
   AppInfoWithUsage({
@@ -16,6 +17,7 @@ class AppInfoWithUsage {
     required this.category,
     required this.usageTime,
     required this.lastForeground, // Make sure it's initialized
+    required this.installationDate,
     this.isBlocked = false,
   });
 }

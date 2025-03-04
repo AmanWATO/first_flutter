@@ -37,8 +37,9 @@ class _AppUsagePanelState extends State<AppUsagePanel> {
 
       List<Application> installedApps =
           await DeviceApps.getInstalledApplications(
-            onlyAppsWithLaunchIntent: true, // Exclude system apps
-            includeAppIcons: true, // Ensure icons are included
+            includeAppIcons: true,
+            includeSystemApps: true,
+            onlyAppsWithLaunchIntent: true,
           );
 
       List<Map<String, dynamic>> appList = [];
@@ -117,6 +118,7 @@ class _AppUsagePanelState extends State<AppUsagePanel> {
           const SizedBox(height: 12),
           GridView.builder(
             shrinkWrap: true,
+
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
@@ -128,9 +130,9 @@ class _AppUsagePanelState extends State<AppUsagePanel> {
             itemBuilder: (context, index) {
               var app = _topApps[index];
               return Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white24.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
@@ -145,8 +147,8 @@ class _AppUsagePanelState extends State<AppUsagePanel> {
                     app['icon'] != null
                         ? Image.memory(
                           app['icon'],
-                          width: 50,
-                          height: 50,
+                          width: 35,
+                          height: 35,
                           fit: BoxFit.contain,
                         )
                         : const Icon(Icons.apps, size: 50, color: Colors.grey),
@@ -155,18 +157,21 @@ class _AppUsagePanelState extends State<AppUsagePanel> {
                       app['name'],
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                         color: app['isBlocked'] ? Colors.red : Colors.black,
+                        height: 1.0,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      textWidthBasis: TextWidthBasis.parent,
                     ),
-                    const SizedBox(height: 6),
+
+                    const SizedBox(height: 2),
                     Text(
                       "${app['usage'].inMinutes} min",
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color:
                             app['isBlocked']
@@ -176,20 +181,20 @@ class _AppUsagePanelState extends State<AppUsagePanel> {
                     ),
                     if (app['isBlocked'])
                       Container(
-                        margin: const EdgeInsets.only(top: 6),
+                        margin: const EdgeInsets.only(top: 10),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.red,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                         child: const Text(
                           'Blocked',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

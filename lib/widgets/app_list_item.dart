@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/app_model.dart';
 import '../utils/usage_utils.dart';
 
@@ -44,6 +45,21 @@ class AppListItemWithUsage extends StatelessWidget {
                   Text(
                     app.category,
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.download, size: 16, color: Colors.green),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Installed: ${DateFormat('dd-MM-yyyy').format(app.installationDate)}',
+                        style: TextStyle(
+                          color: Colors.green.shade700,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                   if (hasUsagePermission) ...[
                     Padding(
