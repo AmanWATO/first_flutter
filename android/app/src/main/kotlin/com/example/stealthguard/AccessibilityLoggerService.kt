@@ -1,14 +1,19 @@
 package com.example.stealthguard
 
 import android.accessibilityservice.AccessibilityService
-import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.Toast
+import android.content.Context
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.content.Context
-import android.content.Intent
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.WindowManager
+import android.widget.TextView
+import android.widget.Toast
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -37,37 +42,53 @@ class AccessibilityLoggerService : AccessibilityService() {
 
         val packageName = event.packageName?.toString() ?: return
 
-        // **1️⃣ App Blocking Logic**
+      
+
         if (blockedApps.contains(packageName)) {
             blockApp(packageName)
             return
         }
 
-        // **2️⃣ Chrome URL Logging Logic**
+        // Chrome URL Logging Logic
         if (packageName == "com.android.chrome") {
             logChromeHistory(event)
         }
     }
 
-    // **🚫 Block App & Send to Home Screen**
+    // **🚫 Block App & Notify User**
     private fun blockApp(packageName: String) {
-        Log.d(TAG, "🚨 Attempting to block: $packageName")
+        val appName = getAppName(packageName)
+        Log.d(TAG, "🚨 Blocking: $appName")
 
-        // Show Toast on Main Thread
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(this, "This app is blocked!", Toast.LENGTH_SHORT).show()
-        }
+        // Show custom toast
+        showCustomToast(appName)
 
-        // Simulate Home Button (Works for most cases)
+        // Send to home screen
         performGlobalAction(GLOBAL_ACTION_HOME)
+    }
 
-        // Kill Background Process (Works for most non-system apps)
-        try {
-            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
-            activityManager.killBackgroundProcesses(packageName)
-            Log.d(TAG, "🚫 App Force Stopped: $packageName")
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error stopping app: ${e.message}")
+    private fun showCustomToast(appName: String) {
+        Handler(Looper.getMainLooper()).post {
+            try {
+                val toast = Toast(applicationContext)
+                val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+                val layout: View = inflater.inflate(R.layout.custom_toast, null)
+                
+                val text: TextView = layout.findViewById(R.id.toast_text)
+                text.text = "Access to $appName has been restricted due to excessive usage."
+                
+                toast.view = layout
+                toast.setGravity(Gravity.CENTER, 0, 0)
+                toast.duration = Toast.LENGTH_LONG // Increased duration
+                toast.show()
+
+                // Optional: Manually extend toast display time
+                Handler(Looper.getMainLooper()).postDelayed({
+                    toast.show() // Show again to extend visibility
+                }, 4000) // Additional 2 seconds
+            } catch (e: Exception) {
+                Log.e(TAG, "Error showing toast: ${e.message}")
+            }
         }
     }
 
@@ -176,12 +197,23 @@ class AccessibilityLoggerService : AccessibilityService() {
         Log.d(TAG, "✅ Blocked Apps Saved: $blockedApps")
     }
 
-    // **Handle External Updates (from MainActivity)**
+    // **📌 Handle External Updates**
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "UPDATE_BLOCKED_APPS") {
             Log.d(TAG, "🔄 Received Update Blocked Apps Intent")
-            loadBlockedApps()  // Reload blocked apps from SharedPreferences
+            loadBlockedApps()
         }
         return super.onStartCommand(intent, flags, startId)
+    }
+
+    // **🔍 Get App Name from Package Name**
+    private fun getAppName(packageName: String): String {
+        return try {
+            val packageManager = packageManager
+            val applicationInfo = packageManager.getApplicationInfo(packageName, 0)
+            packageManager.getApplicationLabel(applicationInfo).toString()
+        } catch (e: Exception) {
+            packageName
+        }
     }
 }

@@ -180,6 +180,8 @@ class _AppsScreenState extends State<AppsScreen> {
         );
       });
 
+      await AccessibilityService.updateBlockedApps(_blockedApps.toList());
+
       // Update the UI
       setState(() {});
     }
@@ -259,10 +261,13 @@ class _AppsScreenState extends State<AppsScreen> {
                   _showTimerSettingModal();
                 },
                 icon: const Icon(Icons.timer_outlined, color: Colors.black),
+
                 label:
                     _hasSetThreshold
                         ? Text(
-                          '${_overusedThreshold ~/ 60}h ${_overusedThreshold % 60}m',
+                          _overusedThreshold ~/ 60 == 0
+                              ? '${_overusedThreshold % 60}m'
+                              : '${_overusedThreshold ~/ 60}h ${_overusedThreshold % 60}m',
                           style: const TextStyle(color: Colors.black),
                         )
                         : const Text(
@@ -271,7 +276,7 @@ class _AppsScreenState extends State<AppsScreen> {
                         ),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(
-                    color: Colors.purpleAccent.shade100,
+                    color: Colors.purpleAccent.shade400,
                     width: 1,
                   ),
                   backgroundColor: Colors.transparent,
