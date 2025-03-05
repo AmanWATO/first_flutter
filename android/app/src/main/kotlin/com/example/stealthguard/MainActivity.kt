@@ -51,7 +51,7 @@ class MainActivity: FlutterActivity() {
     }
 
     private fun openAccessibilitySettings() {
-        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
         startActivity(intent)
     }
 
