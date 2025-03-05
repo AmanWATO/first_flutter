@@ -4,7 +4,6 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
-import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -24,6 +23,14 @@ class MainActivity: FlutterActivity() {
                 }
                 "openAccessibilitySettings" -> {
                     openAccessibilitySettings()
+                    result.success(null)
+                }
+                "updateBlockedApps" -> {
+                    val blockedApps = (call.arguments as List<String>).toMutableList()
+                    saveBlockedApps(blockedApps)
+                    val intent = Intent(this, AccessibilityLoggerService::class.java)
+                    intent.action = "UPDATE_BLOCKED_APPS"
+                    startService(intent)
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -47,7 +54,8 @@ class MainActivity: FlutterActivity() {
     private fun isAccessibilityServiceEnabled(): Boolean {
         val accessibilityServiceName = "${packageName}/com.example.stealthguard.AccessibilityLoggerService"
         val enabledServices = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
-        return enabledServices?.contains(accessibilityServiceName) ?: false
+
+        return enabledServices?.contains(accessibilityServiceName) == true
     }
 
     private fun openAccessibilitySettings() {
@@ -64,11 +72,23 @@ class MainActivity: FlutterActivity() {
             UsageStatsManager.INTERVAL_DAILY, startOfDay, now
         )
 
+        val launcherPackage = getDefaultLauncherPackage()
         var totalUsageMillis: Long = 0
+
         for (usageStat in stats) {
-            totalUsageMillis += usageStat.totalTimeInForeground
+            if (usageStat.packageName != launcherPackage) {
+                totalUsageMillis += usageStat.totalTimeInForeground
+            }
         }
         return totalUsageMillis
+    }
+
+    private fun getDefaultLauncherPackage(): String? {
+        val intent = Intent(Intent.ACTION_MAIN)
+        intent.addCategory(Intent.CATEGORY_HOME)
+
+        val resolveInfo = packageManager.resolveActivity(intent, 0)
+        return resolveInfo?.activityInfo?.packageName
     }
 
     private fun getLastActiveTime(): Long {
@@ -87,5 +107,10 @@ class MainActivity: FlutterActivity() {
             }
         }
         return lastActiveTime
+    }
+
+    private fun saveBlockedApps(blockedApps: List<String>) {
+        val sharedPreferences = getSharedPreferences("BlockedAppsPrefs", Context.MODE_PRIVATE)
+        sharedPreferences.edit().putStringSet("blocked_apps", blockedApps.toSet()).apply()
     }
 }

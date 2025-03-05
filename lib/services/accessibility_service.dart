@@ -26,4 +26,12 @@ class AccessibilityService {
       print("Failed to open accessibility settings: ${e.message}");
     }
   }
+
+  static Future<void> updateBlockedApps(List<String> blockedApps) async {
+    try {
+      await platform.invokeMethod('updateBlockedApps', blockedApps);
+    } catch (e) {
+      print("Error updating blocked apps: $e");
+    }
+  }
 }

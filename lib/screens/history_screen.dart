@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../utils/database_helper.dart';
 import '../models/history_model.dart';
-import '../utils/accessibility_service.dart'; // Add this file from the previous artifact
+import '../services/accessibility_service.dart'; // Add this file from the previous artifact
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});

@@ -42,7 +42,7 @@ class StatTileWidget extends StatelessWidget {
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: valueColor,
                 ),

@@ -57,7 +57,7 @@
 
             <meta-data
                 android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
+                android:resource="@xml/browsing_history_service" />
         </service>
 
         <!-- Flutter Plugin Registration -->

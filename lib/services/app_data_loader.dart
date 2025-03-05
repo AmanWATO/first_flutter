@@ -106,4 +106,14 @@ class AppDataLoader {
     await prefs.setInt('overused_threshold', threshold);
     await prefs.setBool('has_set_threshold', hasSet);
   }
+
+  Future<void> saveBlockedApps(List<String> blockedApps) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList("blocked_apps", blockedApps);
+  }
+
+  Future<List<String>> loadBlockedApps() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList("blocked_apps") ?? [];
+  }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app_usage/app_usage.dart';
+import 'package:stealthguard/services/accessibility_service.dart';
 import 'dart:ui';
 import '../models/app_model.dart';
 import '../widgets/app_list_item.dart';
@@ -29,6 +30,9 @@ class _AppsScreenState extends State<AppsScreen> {
   int _overusedThreshold = 120;
   bool _hasSetThreshold = false;
   bool _showingThresholdModal = false;
+
+  Set<String> _blockedApps = {};
+
   late AppCategorizer _appCategorizer;
 
   @override
@@ -74,6 +78,26 @@ class _AppsScreenState extends State<AppsScreen> {
     await _loadApps();
   }
 
+  Future<void> _updateBlockedApps() async {
+    _blockedApps.clear();
+
+    for (var app in _apps) {
+      if (_usageInfo.containsKey(app.packageName) &&
+          _usageInfo[app.packageName]!.usage.inMinutes >= _overusedThreshold &&
+          app.packageName != "com.example.stealthguard") {
+        _blockedApps.add(app.packageName);
+      }
+    }
+
+    // Save locally in SharedPreferences
+    await _dataLoader.saveBlockedApps(_blockedApps.toList());
+
+    // Load again to verify
+
+    // Directly call the native AccessibilityLoggerService to update
+    await AccessibilityService.updateBlockedApps(_blockedApps.toList());
+  }
+
   Future<void> _loadApps() async {
     setState(() {
       _isLoading = true;
@@ -102,6 +126,8 @@ class _AppsScreenState extends State<AppsScreen> {
           );
         });
       }
+
+      await _updateBlockedApps();
 
       setState(() {
         _isLoading = false;
