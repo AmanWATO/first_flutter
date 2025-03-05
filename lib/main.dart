@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'screens/home_screen.dart';
 import 'screens/apps_screen.dart';
 import 'screens/history_screen.dart';
@@ -38,6 +39,21 @@ class _MainScreenState extends State<MainScreen> {
     const AppsScreen(),
     const HistoryScreen(), // Added History Tab
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _requestSystemAlertPermission();
+  }
+
+  Future<void> _requestSystemAlertPermission() async {
+    final status = await Permission.systemAlertWindow.request();
+
+    if (status.isPermanentlyDenied) {
+      // If denied permanently, open app settings
+      openAppSettings();
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {

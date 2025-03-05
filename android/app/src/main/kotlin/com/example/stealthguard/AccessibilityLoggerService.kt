@@ -17,6 +17,8 @@ import android.view.accessibility.AccessibilityNodeInfo
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.view.*
+import android.graphics.PixelFormat
 
 class AccessibilityLoggerService : AccessibilityService() {
 
@@ -30,6 +32,9 @@ class AccessibilityLoggerService : AccessibilityService() {
 
     private lateinit var dbHelper: DatabaseHelper
     private var lastLoggedUrl: String = ""
+    private var windowManager: WindowManager? = null
+    private var overlayView: View? = null
+
 
     override fun onCreate() {
         super.onCreate()
@@ -59,36 +64,52 @@ class AccessibilityLoggerService : AccessibilityService() {
     private fun blockApp(packageName: String) {
         val appName = getAppName(packageName)
         Log.d(TAG, "🚨 Blocking: $appName")
-
-        // Show custom toast
-        showCustomToast(appName)
-
-        // Send to home screen
+    
+        // Send user to the home screen
         performGlobalAction(GLOBAL_ACTION_HOME)
+    
+        // Show overlay message
+        showOverlayMessage("Access to $appName is blocked.")
     }
 
-    private fun showCustomToast(appName: String) {
-        Handler(Looper.getMainLooper()).post {
-            try {
-                val toast = Toast(applicationContext)
-                val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-                val layout: View = inflater.inflate(R.layout.custom_toast, null)
-                
-                val text: TextView = layout.findViewById(R.id.toast_text)
-                text.text = "Access to $appName has been restricted due to excessive usage."
-                
-                toast.view = layout
-                toast.setGravity(Gravity.CENTER, 0, 0)
-                toast.duration = Toast.LENGTH_LONG // Increased duration
-                toast.show()
-
-                // Optional: Manually extend toast display time
-                Handler(Looper.getMainLooper()).postDelayed({
-                    toast.show() // Show again to extend visibility
-                }, 4000) // Additional 2 seconds
-            } catch (e: Exception) {
-                Log.e(TAG, "Error showing toast: ${e.message}")
-            }
+    private fun showOverlayMessage(message: String) {
+        val context = applicationContext
+    
+        // Remove previous overlay if exists
+        removeOverlayMessage()
+    
+        // Inflate overlay layout
+        val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        overlayView = inflater.inflate(R.layout.overlay_message, null)
+    
+        val messageText: TextView = overlayView!!.findViewById(R.id.overlay_text)
+        messageText.text = message
+    
+        // Set up layout parameters
+        val layoutParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+            PixelFormat.TRANSLUCENT
+        )
+        layoutParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        layoutParams.y = 100 // Position above bottom
+    
+        // Add overlay to window
+        windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        windowManager?.addView(overlayView, layoutParams)
+    
+        // Remove overlay after 3 seconds
+        Handler(Looper.getMainLooper()).postDelayed({
+            removeOverlayMessage()
+        }, 3000)
+    }
+    
+    private fun removeOverlayMessage() {
+        if (overlayView != null) {
+            windowManager?.removeView(overlayView)
+            overlayView = null
         }
     }
 

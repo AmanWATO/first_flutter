@@ -180,7 +180,7 @@ class _AppsScreenState extends State<AppsScreen> {
         );
       });
 
-      await AccessibilityService.updateBlockedApps(_blockedApps.toList());
+      await _updateBlockedApps();
 
       // Update the UI
       setState(() {});
